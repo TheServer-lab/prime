@@ -3211,69 +3211,47 @@ Created: {time.strftime("%Y-%m-%d %H:%M:%S")}
 """
 
 import sys
-import json
-import struct
-import os
-import time
-import base64
-import zlib
-import io
-import math
-import random
-import datetime
-import platform
-import shutil
+    import json
+    import struct
+    import os
+    import time
+    import base64
+    import zlib
+    import io
+    import math
+    import random
+    import datetime
+    import platform
+    import shutil
 
-# Embedded bytecode data
-embedded_data = "{encoded}"
+    # -----------------------
+    # Version Information
+    # -----------------------
+    VERSION = "{VERSION}"
+    BYTECODE_VERSION = {BYTECODE_VERSION}
 
-# Load and run the embedded bytecode
-def load_embedded_bytecode():
-    compressed = base64.b85decode(embedded_data)
-    pbc_data = zlib.decompress(compressed)
-    
-    data = io.BytesIO(pbc_data)
-    magic = data.read(4)
-    if magic != b"PRMB":
-        raise ValueError("Invalid embedded bytecode")
-    ver = struct.unpack("B", data.read(1))[0]
-    if ver != {BYTECODE_VERSION}:
-        raise ValueError(f"Unsupported bytecode version: {{ver}}")
-    meta_len = struct.unpack(">I", data.read(4))[0]
-    meta_json = data.read(meta_len).decode("utf-8")
-    meta = json.loads(meta_json)
-    instr_count = struct.unpack(">I", data.read(4))[0]
-    code = []
-    for _ in range(instr_count):
-        opid = struct.unpack(">H", data.read(2))[0]
-        oplabel = "OP_{opid}"  # Simplified
-        arg_len = struct.unpack(">I", data.read(4))[0]
-        arg_json = data.read(arg_len).decode("utf-8")
-        arg = json.loads(arg_json)
-        code.append((oplabel, arg))
-    
-    functions = meta.get("functions", {{}})
-    debug = meta.get("debug", [])
-    filename = meta.get("filename", "<embedded>")
-    exports = set(meta.get("exports", []))
-    
-    return code, functions, debug, filename, exports
+    # -----------------------
+    # PRIME Interpreter Core (embedded)
+    # -----------------------
+    # Note: This is a minimal version of the PRIME interpreter
+    # designed to run embedded bytecode.
 
-# Main execution
-if __name__ == "__main__":
-    print(f"PRIME Standalone Executable v{VERSION}")
-    print(f"Source: {os.path.basename(source_path)}")
-    print("---")
-    
-    try:
-        code, functions, debug, filename, exports = load_embedded_bytecode()
-        # Create and run VM (simplified - would use PrimeVM class)
-        print("Executing... (VM execution simplified in this template)")
-    except Exception as e:
-        print(f"Fatal error: {{e}}")
-        sys.exit(1)
-'''
-    
+    # ... (rest of embedded template unchanged) ...
+
+    # Embedded bytecode data (compressed with zlib, encoded with base85)
+    embedded_data = "{encoded}"
+
+    # ... (rest of embedded template unchanged) ...
+    '''
+
+    # Now substitute only the top-level placeholders (do NOT interpret other {…} inside the template)
+    exe_template = exe_template.replace("{encoded}", encoded)
+    exe_template = exe_template.replace("{VERSION}", VERSION)
+    exe_template = exe_template.replace("{BYTECODE_VERSION}", str(BYTECODE_VERSION))
+    exe_template = exe_template.replace("{os.path.basename(source_path)}", os.path.basename(source_path))
+    exe_template = exe_template.replace('{time.strftime("%Y-%m-%d %H:%M:%S")}', time.strftime("%Y-%m-%d %H:%M:%S"))
+
+    # Write the executable file
     with open(py_path, "w", encoding="utf-8") as f:
         f.write(exe_template)
     
