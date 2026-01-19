@@ -3112,9 +3112,15 @@ def compile_to_exe(source_path, exe_path):
         print(f"  Created temporary script: {temp_py}")
         print(f"  Running PyInstaller to create executable...")
         
+        # Use 'python' instead of sys.executable to avoid running through prime.exe
+        python_exe = 'python'
+        if sys.platform == "win32":
+            # On Windows, try python.exe first
+            python_exe = 'python.exe'
+            
         if sys.platform == "win32":
             cmd = [
-                sys.executable, "-m", "pyinstaller",
+                python_exe, "-m", "pyinstaller",
                 "--onefile",
                 "--name", os.path.splitext(os.path.basename(exe_path))[0],
                 "--distpath", os.path.dirname(exe_path) if os.path.dirname(exe_path) else ".",
@@ -3125,7 +3131,7 @@ def compile_to_exe(source_path, exe_path):
             ]
         else:
             cmd = [
-                sys.executable, "-m", "pyinstaller",
+                python_exe, "-m", "pyinstaller",
                 "--onefile",
                 "--name", os.path.splitext(os.path.basename(exe_path))[0],
                 "--distpath", os.path.dirname(exe_path) if os.path.dirname(exe_path) else ".",
@@ -3134,39 +3140,70 @@ def compile_to_exe(source_path, exe_path):
                 "--clean",
                 temp_py
             ]
+        
+        print(f"  Running command: {' '.join(cmd)}")
         
         result = subprocess.run(cmd, capture_output=True, text=True)
         
         if result.returncode != 0:
             print(f"✗ PyInstaller failed:")
             print(f"  Error: {result.stderr}")
-            return False
+            
+            # Fallback: try without -m flag
+            print("  Trying alternative approach...")
+            try:
+                # Try direct pyinstaller command
+                cmd[1] = "pyinstaller"  # Replace "-m" with "pyinstaller"
+                cmd.pop(2)  # Remove "pyinstaller" from the list
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                
+                if result.returncode != 0:
+                    raise Exception("Alternative approach also failed")
+                    
+            except Exception as e2:
+                print(f"✗ Alternative approach also failed: {e2}")
+                print("\nPlease ensure PyInstaller is installed and in your PATH.")
+                print("You can install it with: pip install pyinstaller")
+                return False
         
         print(f"✓ PyInstaller completed successfully")
         
+        # Find and move the generated executable
+        exe_name = os.path.splitext(os.path.basename(exe_path))[0]
         if sys.platform == "win32":
             generated_exe = os.path.join(
                 os.path.dirname(exe_path) if os.path.dirname(exe_path) else "dist",
-                os.path.splitext(os.path.basename(exe_path))[0] + ".exe"
+                exe_name + ".exe"
             )
         else:
             generated_exe = os.path.join(
                 os.path.dirname(exe_path) if os.path.dirname(exe_path) else "dist",
-                os.path.splitext(os.path.basename(exe_path))[0]
+                exe_name
             )
         
-        if generated_exe != exe_path and os.path.exists(generated_exe):
-            shutil.move(generated_exe, exe_path)
-            print(f"✓ Moved executable to: {exe_path}")
-        
-        print(f"✓ Created standalone executable: {exe_path}")
-        print(f"  Size: {os.path.getsize(exe_path) if os.path.exists(exe_path) else 0} bytes")
+        if os.path.exists(generated_exe):
+            if generated_exe != exe_path:
+                shutil.move(generated_exe, exe_path)
+                print(f"✓ Moved executable to: {exe_path}")
+            print(f"✓ Created standalone executable: {exe_path}")
+            print(f"  Size: {os.path.getsize(exe_path)} bytes")
+        else:
+            # Try to find it in the build directory
+            build_exe = os.path.join(temp_dir, "dist", exe_name + (".exe" if sys.platform == "win32" else ""))
+            if os.path.exists(build_exe):
+                shutil.move(build_exe, exe_path)
+                print(f"✓ Created standalone executable: {exe_path}")
+                print(f"  Size: {os.path.getsize(exe_path)} bytes")
+            else:
+                print(f"✗ Could not find generated executable")
+                return False
         
         return True
         
     except FileNotFoundError:
-        print("✗ PyInstaller not found. Please install it with:")
-        print("  pip install pyinstaller")
+        print("✗ Python interpreter or PyInstaller not found.")
+        print("  Please ensure Python is installed and in your PATH.")
+        print("  Also ensure PyInstaller is installed: pip install pyinstaller")
         return False
     except Exception as e:
         print(f"✗ Error creating executable: {e}")
